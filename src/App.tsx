@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { profile, projects, sections, skillGroups, type Category, type Project, type SectionId } from './data';
+import Welcome, { shouldWelcome, welcomeSessionKey } from './Welcome';
+import { focusableElements, isEditing, moveFocus, navigationAction } from './navigation';
 
 function Icon({ name, ...props }: { name: 'arrow' | 'sound' | 'mute' | 'motion' | 'github' | 'close' | 'copy' | 'pin' } & React.SVGProps<SVGSVGElement>) {
   const paths = {
@@ -131,9 +133,12 @@ export default function App() {
   const [reduced, setReduced] = useState(() => savedBoolean('portfolio-reduced-motion', window.matchMedia('(prefers-reduced-motion: reduce)').matches));
   const [project, setProject] = useState<Project | null>(null);
   const [help, setHelp] = useState(false);
+  const [welcome, setWelcome] = useState(shouldWelcome);
   const audio = useRef<AudioContext | null>(null);
   const menu = useRef<HTMLElement>(null);
   const content = useRef<HTMLElement>(null);
+  const enterContent = useRef(false);
+  const keyboardSound = useRef(() => {});
   const current = sections.find(item => item.id === section)!;
 
   function playSound(force = false) {
@@ -154,6 +159,23 @@ export default function App() {
       oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
     } catch { /* Sound is optional: navigation remains available without Web Audio. */ }
   }
+  useEffect(() => { keyboardSound.current = () => playSound(); });
+  function focusContent(controlsFirst = false) {
+    const root = content.current;
+    if (!root) return;
+    const target = (controlsFirst ? focusableElements(root)[0] : null) ?? root.querySelector<HTMLElement>('h1') ?? root;
+    target.focus({ preventScroll: true });
+    if (controlsFirst) target.scrollIntoView({ block: 'nearest' });
+  }
+  function finishWelcome(immersive: boolean) {
+    try { sessionStorage.setItem(welcomeSessionKey, 'true'); } catch { /* Entry works even when storage is unavailable. */ }
+    setWelcome(false);
+    setSound(immersive);
+    requestAnimationFrame(() => {
+      if (immersive) menu.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus();
+      else focusContent();
+    });
+  }
   useEffect(() => {
     try { localStorage.setItem('portfolio-sound', String(sound)); localStorage.setItem('portfolio-reduced-motion', String(reduced)); } catch { /* Private browsing may disable storage. */ }
     document.documentElement.dataset.motion = reduced ? 'reduced' : 'full';
@@ -162,7 +184,7 @@ export default function App() {
   useEffect(() => {
     function onHashChange() {
       setSection(getSection()); setProject(null); setHelp(false);
-      requestAnimationFrame(() => { content.current?.scrollTo(0, 0); content.current?.querySelector('h1')?.focus({ preventScroll: true }); window.scrollTo(0, 0); });
+      requestAnimationFrame(() => { content.current?.scrollTo(0, 0); window.scrollTo(0, 0); focusContent(enterContent.current); enterContent.current = false; });
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -170,30 +192,61 @@ export default function App() {
   useEffect(() => { document.title = `${section === 'inicio' ? 'Portfolio' : current.label} — Ignacio Cisternas`; }, [section, current.label]);
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.altKey || event.ctrlKey || event.metaKey || document.querySelector('dialog[open]')) return;
+      if (welcome || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
       const target = event.target as HTMLElement;
-      if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (isEditing(target)) return;
+      const action = navigationAction(event.key);
+      const dialog = document.querySelector<HTMLDialogElement>('dialog[open]');
+      if (dialog) {
+        // Keep game controls within the active dialog; Escape remains native.
+        if (!action) return;
+        event.preventDefault();
+        if (action === 'back') { if (!event.repeat) { setProject(null); setHelp(false); } }
+        else if (action === 'open') { if (!event.repeat) target.closest<HTMLElement>('button, a[href]')?.click(); }
+        else moveFocus(focusableElements(dialog), action === 'previous' ? -1 : 1);
+        return;
+      }
       if (event.key === 'Escape' && section !== 'inicio') { window.location.hash = 'inicio'; return; }
       if (event.key === '?') { event.preventDefault(); setHelp(true); return; }
-      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && (menu.current?.contains(target) || target === document.body)) {
+      const menuLinks = Array.from(menu.current!.querySelectorAll<HTMLAnchorElement>('a'));
+      const selectedIndex = sections.findIndex(item => item.id === section);
+      if (action === 'back') {
         event.preventDefault();
-        const links = Array.from(menu.current!.querySelectorAll<HTMLAnchorElement>('a'));
-        const index = links.findIndex(link => link === document.activeElement);
-        const start = index < 0 ? sections.findIndex(item => item.id === section) : index;
-        links[(start + (event.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length].focus();
+        menuLinks[selectedIndex].focus();
+        return;
+      }
+      if (action === 'previous' || action === 'next') {
+        event.preventDefault();
+        const controls = content.current ? focusableElements(content.current) : [];
+        // After a mouse click or heading focus, arrows can still reach the menu.
+        const inContentControls = controls.includes(target);
+        moveFocus(inContentControls ? controls : menuLinks, action === 'previous' ? -1 : 1, selectedIndex);
+        keyboardSound.current();
+        return;
+      }
+      if (action === 'open' || (event.key === 'Enter' && menu.current?.contains(target))) {
+        event.preventDefault();
+        if (event.repeat) return;
+        const control = target.closest<HTMLElement>('button, a[href]');
+        if (control && !menu.current?.contains(control)) { control.click(); return; }
+        const link = (menu.current?.contains(target) ? target.closest('a') : null) ?? menuLinks[selectedIndex];
+        if (link.hash === `#${section}`) { focusContent(true); return; }
+        enterContent.current = true;
+        link.click();
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [section]);
+  }, [section, welcome]);
 
   return <div className={`app-shell view-${section}`}>
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); content.current?.focus(); }}>Saltar al contenido</a>
     <header className="topbar"><a className="brand" href="#inicio" aria-label="Ignacio Cisternas, inicio"><span className="brand-symbol">ic<span>✦</span></span><span>IGNACIO CISTERNAS<small>PERSONAL PORTFOLIO</small></span></a><div className="topbar-center"><span className="status-dot" /> DESARROLLO CON PERSONALIDAD</div><div className="settings"><button className="setting-button" aria-label={sound ? 'Desactivar sonido' : 'Activar sonido'} aria-pressed={sound} onClick={() => { if (!sound) playSound(true); setSound(value => !value); }}><Icon name={sound ? 'sound' : 'mute'} /><span>SFX <b>{sound ? 'ON' : 'OFF'}</b></span></button><button className="setting-button motion-button" aria-label="Reducir animaciones" aria-pressed={reduced} onClick={() => setReduced(value => !value)}><Icon name="motion" /><span>{reduced ? 'CALMA' : 'ANIMACIÓN'}</span></button><button className="help-button" aria-label="Ayuda de navegación" onClick={() => setHelp(true)}>?</button></div></header>
     <div className="main-layout"><aside className="sidebar"><div className="chapter-label"><span className="chapter-number">0{sections.findIndex(item => item.id === section) + 1}</span><div>ELIGE TU SIGUIENTE<small>MOVIMIENTO.</small></div></div><nav ref={menu} className="main-menu" aria-label="Navegación principal">{sections.map((item, index) => <a key={item.id} href={`#${item.id}`} className={section === item.id ? 'selected' : ''} aria-current={section === item.id ? 'page' : undefined} onClick={() => playSound()}><span className="menu-number">0{index + 1}</span><span className="menu-label">{item.label}</span><span className="menu-arrow" aria-hidden="true">↗</span></a>)}</nav><div className="menu-caption"><span>✦</span><p>{current.note}</p></div><a className="sidebar-github" href={profile.github} target="_blank" rel="noopener noreferrer"><Icon name="github" /> GITHUB <Icon name="arrow" /><span className="sr-only"> (abre en otra pestaña)</span></a><span className="sidebar-vertical" aria-hidden="true">NOT YOUR AVERAGE PORTFOLIO.</span></aside>
     <main id="main-content" ref={content} tabIndex={-1} className="main-content"><div className="page-transition" key={section}>{section === 'inicio' ? <Home /> : section === 'perfil' ? <Profile /> : section === 'proyectos' ? <Projects onSelect={item => { playSound(); setProject(item); }} /> : section === 'habilidades' ? <Skills /> : section === 'trayectoria' ? <Journey /> : <Contact />}</div></main></div>
-    <footer className="statusbar"><div><span className="footer-star">✦</span><strong>TAKE YOUR TIME.</strong><span className="footer-subtitle">Hay mucho por descubrir.</span></div><div className="keyboard-hints"><span><kbd>↑</kbd><kbd>↓</kbd> Elegir</span><span><kbd>↵</kbd> Abrir</span><span><kbd>ESC</kbd> Inicio</span></div><span className="footer-edition">IC / PORTFOLIO — VOL. 01</span></footer>
+    <footer className="statusbar"><div><span className="footer-star">✦</span><strong>TAKE YOUR TIME.</strong><span className="footer-subtitle">Hay mucho por descubrir.</span></div><div className="keyboard-hints"><span><kbd>W</kbd><kbd>S</kbd> / ↑↓ Elegir</span><span><kbd>D</kbd> / ↵ Abrir</span><span><kbd>A</kbd> / ← Menú</span></div><span className="footer-edition">IC / PORTFOLIO — VOL. 01</span></footer>
     {project && <Modal title={project.name} onClose={() => setProject(null)}><div className="modal-project-label"><span>CASE {project.number}</span><span>{project.category}</span></div><p className="modal-intro">{project.subtitle}</p><div className="case-columns"><section><h3>El desafío</h3><p>{project.challenge}</p></section><section><h3>La solución</h3><p>{project.solution}</p></section></div><h3>Dentro del proyecto</h3><ul className="feature-list">{project.features.map(feature => <li key={feature}>{feature}</li>)}</ul><div className="tag-list">{project.stack.map(tag => <span key={tag}>{tag}</span>)}</div><div className="modal-actions">{project.demo && <ExternalLink className="action-button" href={project.demo}>{project.demoLabel}</ExternalLink>}<ExternalLink className="source-link" href={project.repository}>Ver código</ExternalLink></div></Modal>}
-    {help && <Modal title="Toma el control." className="help-modal" onClose={() => setHelp(false)}><p>Explora con mouse, teclado o tocando la pantalla.</p><dl className="help-list"><div><dt>↑ / ↓</dt><dd>Mover el foco entre opciones del menú.</dd></div><div><dt>Enter</dt><dd>Abrir la opción que tiene el foco.</dd></div><div><dt>Tab</dt><dd>Recorrer todos los enlaces y controles.</dd></div><div><dt>Escape</dt><dd>Cerrar un expediente o volver al inicio.</dd></div><div><dt>?</dt><dd>Abrir esta guía.</dd></div></dl><p>Activa SFX para escuchar efectos originales de navegación. Usa el control de animación para una experiencia más tranquila.</p><p className="credits">Inspirado en Persona 5 Royal y en <ExternalLink href="https://github.com/ffaneto/persona5-website-theme">el proyecto de ffaneto</ExternalLink>. Diseño y código propios; sin afiliación con ATLUS o SEGA.</p></Modal>}
+    {help && <Modal title="Toma el control." className="help-modal" onClose={() => setHelp(false)}><p>Alterna entre teclado, ratón y touch cuando quieras.</p><dl className="help-list"><div><dt>W/S · ↑/↓</dt><dd>Elegir una sección. Dentro del contenido, recorrer sus botones y enlaces.</dd></div><div><dt>D · → · ↵</dt><dd>Abrir la opción enfocada o entrar en el contenido de una sección.</dd></div><div><dt>A · ←</dt><dd>Volver al menú; dentro de un expediente, cerrarlo.</dd></div><div><dt>Tab</dt><dd>Recorrer todos los enlaces y controles.</dd></div><div><dt>Escape</dt><dd>Cerrar un expediente o volver al inicio.</dd></div><div><dt>?</dt><dd>Abrir esta guía.</dd></div></dl><p>Los atajos no interfieren cuando estás escribiendo. Usa la rueda, Page Up o Page Down para leer; SFX y el control de animación ajustan la experiencia.</p><button className="replay-welcome" onClick={() => { setHelp(false); setWelcome(true); }}>Volver a ver la bienvenida <Icon name="arrow" /></button><p className="credits">Inspirado en Persona 5 Royal y en <ExternalLink href="https://github.com/ffaneto/persona5-website-theme">el proyecto de ffaneto</ExternalLink>. Diseño y código propios; sin afiliación con ATLUS o SEGA.</p></Modal>}
+    {welcome && <Welcome emblem={<CodeMask />} onEnter={finishWelcome} onActivateSound={() => playSound(true)} />}
   </div>;
 }

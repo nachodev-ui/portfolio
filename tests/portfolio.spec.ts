@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  // Returning visitor: onboarding itself is covered in welcome.spec.ts.
+  await page.addInitScript(() => sessionStorage.setItem('portfolio-welcome-seen-v1', 'true'));
+});
+
 test('all sections render without runtime errors or horizontal overflow', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -80,4 +85,66 @@ test('all bundled assets resolve when hosted under a repository subpath', async 
   await page.evaluate(() => document.fonts.ready);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ideas en acción');
   expect(failed).toEqual([]);
+});
+
+test('arrows resume from content headings after mouse navigation', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('nav a[href="#perfil"]').click();
+  await expect(page.locator('main h1')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('nav a[href="#proyectos"]')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#proyectos$/);
+  await expect(page.getByRole('button', { name: /Todos/ })).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('nav a[href="#proyectos"]')).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('nav a[href="#perfil"]')).toBeFocused();
+});
+
+test('WASD explores a project and returns without a mouse or Tab', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('main h1')).toBeVisible();
+  await page.keyboard.press('s');
+  await expect(page.locator('nav a[href="#perfil"]')).toBeFocused();
+  await page.keyboard.press('S');
+  await expect(page.locator('nav a[href="#proyectos"]')).toBeFocused();
+  await page.keyboard.press('d');
+  await expect(page.getByRole('button', { name: /Todos/ })).toBeFocused();
+  for (let i = 0; i < 4; i++) await page.keyboard.press('s');
+  await expect(page.getByRole('button', { name: 'Ver proyecto Albion Calculator' })).toBeFocused();
+  await page.keyboard.press('D');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('s');
+  await expect(page.getByRole('dialog').getByRole('link', { name: /Abrir aplicación/ })).toBeFocused();
+  await expect(page).toHaveURL(/#proyectos$/);
+  await page.keyboard.press('a');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Ver proyecto Albion Calculator' })).toBeFocused();
+  await page.keyboard.press('a');
+  await expect(page.locator('nav a[href="#proyectos"]')).toBeFocused();
+  await page.keyboard.press('w');
+  await expect(page.locator('nav a[href="#perfil"]')).toBeFocused();
+});
+
+test('game shortcuts preserve editing, modified keys and native controls', async ({ page }) => {
+  await page.goto('/#contacto');
+  // A future contact field or editable region must not lose input to shortcuts.
+  await page.evaluate(() => {
+    const input = document.createElement('input');
+    input.setAttribute('aria-label', 'Test field');
+    document.querySelector('main')!.append(input);
+  });
+  const input = page.getByRole('textbox', { name: 'Test field' });
+  await input.focus();
+  await page.keyboard.type('wasdWASD?');
+  await expect(input).toHaveValue('wasdWASD?');
+  await page.keyboard.press('ArrowLeft');
+  await expect(input).toBeFocused();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.locator('main h1').focus();
+  await page.keyboard.press('Control+s');
+  await expect(page.locator('main h1')).toBeFocused();
+  await page.keyboard.press('s');
+  await expect(page.locator('nav a[href="#inicio"]')).toBeFocused();
 });
