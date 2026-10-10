@@ -12,14 +12,18 @@ Portafolio interactivo en español, inspirado en el lenguaje visual de los menú
 
 [Ver la bienvenida en móvil](docs/preview-welcome-mobile.webp)
 
+![Contacto con LinkedIn y formulario integrado](docs/preview-contact.webp)
+
+[Ver Contacto en móvil](docs/preview-contact-mobile.webp)
+
 ## Qué incluye
 
 - **Inicio:** identidad visual propia y una máscara original que combina símbolos de código.
 - **Mi persona:** perfil, formación e intereses profesionales.
-- **Proyectos:** tres casos reales del ecosistema Albion, filtros por área, expedientes y enlaces a código, producto y documentación.
+- **Proyectos:** Gimae! en desarrollo avanzado y tres casos del ecosistema Albion, filtros por área, expedientes y enlaces a código, producto y documentación.
 - **Habilidades:** frontend, mobile, backend y datos/BI.
 - **Trayectoria:** formación, práctica profesional y proyectos.
-- **Contacto:** GitHub y copia del contacto; correo opcional configurable.
+- **Contacto:** LinkedIn como canal profesional principal, correo visible y copiable, formulario integrado y GitHub como enlace secundario.
 - **Bienvenida:** pantalla de entrada animada con dos formas de explorar, instrucciones WASD/flechas y carga real de fuentes. Se muestra una vez por pestaña y puede repetirse desde la ayuda.
 - Diseño adaptable a escritorio y móvil, navegación por hash, historial del navegador, foco visible, enlace para saltar al contenido y diálogos accesibles.
 - Efectos originales de sonido con Web Audio: solo se activan al elegir explícitamente el modo inmersivo o SFX. La entrada con ratón/touch comienza sin sonido. Preferencias locales de sonido y movimiento, con respeto a `prefers-reduced-motion`.
@@ -47,15 +51,29 @@ npm run preview
 | --- | --- |
 | `src/data.ts` | Nombre, contacto, enlaces, proyectos y grupos de habilidades |
 | `src/App.tsx` | Secciones, biografía, trayectoria, interacciones y gráficos SVG |
+| `src/Contact.tsx` y `src/contact.css` | Contacto, formulario, estados de envío y diseño de la tarjeta |
 | `src/Welcome.tsx` y `src/welcome.css` | Pantalla de bienvenida, instrucciones y transición de entrada |
 | `src/navigation.ts` | Mapeo WASD/flechas, selección de controles y protección de campos editables |
 | `src/styles.css` | Colores, tipografías, composiciones, animaciones y breakpoints |
 | `public/favicon.svg` | Icono propio del portafolio |
 | `index.html` | Idioma, descripción y metadatos iniciales |
 
-`profile.email` está vacío intencionalmente. Agrega tu correo público preferido para activar el botón de email. Mientras esté vacío, contacto y portapapeles usan tu perfil de GitHub. No se incluye un formulario que simule enviar mensajes ni un CV inexistente.
+`profile.email` y `profile.linkedin` contienen los contactos públicos del autor. El correo es visible, tiene un enlace `mailto:` y se puede copiar. El formulario permite escribir sin salir del portafolio. El teléfono se omite del sitio público para priorizar LinkedIn y correo.
 
-El contenido de los proyectos se preparó usando los README de los tres repositorios públicos en septiembre de 2026. Biografía, trayectoria y habilidades son editables; revisa el texto antes de usarlo en postulaciones. No se muestran niveles porcentuales inventados ni se afirma una titulación oficial.
+### Activar el formulario de contacto
+
+GitHub Pages sirve archivos estáticos; el envío se realiza a través de [FormSubmit AJAX](https://formsubmit.co/ajax-documentation), sin contraseñas de Gmail ni claves privadas en el frontend.
+
+1. Publica estos cambios en Pages (workflow manual, instrucciones más abajo).
+2. Abre la sección **Contacto** de la URL publicada y envía una prueba con tu propio correo. La primera petición dispara la activación del destinatario.
+3. Revisa `ig.cisternas.dev@gmail.com`, incluida la carpeta de spam, y pulsa **Activate Form** en el correo de FormSubmit. Esta verificación del buzón solo la puede completar su propietario.
+4. Vuelve a enviar una prueba desde la URL publicada y comprueba su recepción. No uses una prueba local como evidencia de recepción en producción.
+
+El formulario incluye nombre, correo de respuesta, motivo y mensaje. Valida campos obligatorios, evita dobles clics durante una petición, usa un campo trampa para bots y limita la espera a 20 segundos. Una respuesta de activación, rechazo o error conserva el borrador. Solo una respuesta afirmativa del proveedor muestra la aceptación y limpia los campos; esa respuesta **no prueba que el mensaje haya llegado a la bandeja de entrada**. No hay reintentos automáticos si la conexión se interrumpe.
+
+El aviso de privacidad enlaza las condiciones del servicio. El modo AJAX se configura sin reCAPTCHA externo para mantener el envío dentro de la página; depende de los filtros y límites de FormSubmit. Si se cambia el correo en `src/data.ts`, será necesario activar el nuevo destinatario. Las pruebas automatizadas interceptan el servicio: no envían correos reales ni activan buzones.
+
+Los casos de Albion se prepararon con sus README en septiembre de 2026. Gimae se añadió tras revisar su README de `main` en octubre de 2026: se presenta como desarrollo avanzado y sus pagos como integraciones de prueba, sin afirmar que haya cobros Live activos. Biografía, trayectoria y habilidades son editables; revisa el texto antes de usarlo en postulaciones. No se muestran niveles porcentuales inventados ni se afirma una titulación oficial.
 
 ## Navegación
 
@@ -84,7 +102,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Las pruebas ejecutan el build real en escritorio y móvil. Cubren rutas, filtros, detalles, foco y teclado, historial, preferencias, movimiento reducido, errores de portapapeles y archivos estáticos bajo `/portfolio/`. También reproducen la navegación desde el contenido, un recorrido completo de proyectos solo con WASD, primera visita, entrada por ambos modos, repetición y omisión de la bienvenida, enlaces directos y almacenamiento no disponible.
+Las pruebas ejecutan el build real en escritorio y móvil. Cubren rutas, filtros, detalles, foco y teclado, historial, preferencias, movimiento reducido, errores de portapapeles, filtros y expediente de Gimae, validación y estados de envío del formulario (con el proveedor interceptado), y archivos estáticos bajo `/portfolio/`. También reproducen la navegación desde el contenido, un recorrido completo de proyectos solo con WASD, primera visita, entrada por ambos modos, repetición y omisión de la bienvenida, enlaces directos y almacenamiento no disponible.
 
 ## Publicar con GitHub Pages
 

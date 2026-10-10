@@ -34,7 +34,7 @@ test('project filters, detail dialog, keyboard dismissal and focus restoration',
   await expect(project).toBeFocused();
   await expect(page).toHaveURL(/#proyectos$/);
   await page.getByRole('button', { name: /Todos/ }).click();
-  await expect(page.locator('.project-card')).toHaveCount(3);
+  await expect(page.locator('.project-card')).toHaveCount(4);
 });
 
 test('menu arrows, Enter, Escape and browser history work together', async ({ page }) => {
@@ -73,9 +73,9 @@ test('respects reduced motion and handles clipboard denial honestly', async ({ p
   await page.goto('/#contacto');
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduced');
   await page.evaluate(() => Object.defineProperty(navigator.clipboard, 'writeText', { value: () => Promise.reject(new Error('Denied')) }));
-  await page.getByRole('button', { name: 'Copiar contacto' }).click();
-  await expect(page.getByRole('status')).toContainText('Puedes copiar el contacto manualmente: https://github.com/nachodev-ui');
-  await expect(page.getByRole('link', { name: /Conectemos en GitHub/ })).toHaveAttribute('href', 'https://github.com/nachodev-ui');
+  await page.getByRole('button', { name: 'Copiar correo' }).click();
+  await expect(page.locator('.copy-feedback')).toContainText('Puedes copiar el contacto manualmente: ig.cisternas.dev@gmail.com');
+  await expect(page.getByRole('link', { name: /Conectemos en LinkedIn/ })).toHaveAttribute('href', 'https://cl.linkedin.com/in/ignacio-cisternas-orellana');
 });
 
 test('all bundled assets resolve when hosted under a repository subpath', async ({ page }) => {
@@ -112,15 +112,15 @@ test('WASD explores a project and returns without a mouse or Tab', async ({ page
   await page.keyboard.press('d');
   await expect(page.getByRole('button', { name: /Todos/ })).toBeFocused();
   for (let i = 0; i < 4; i++) await page.keyboard.press('s');
-  await expect(page.getByRole('button', { name: 'Ver proyecto Albion Calculator' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Ver proyecto Gimae! — Idol Club' })).toBeFocused();
   await page.keyboard.press('D');
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('s');
-  await expect(page.getByRole('dialog').getByRole('link', { name: /Abrir aplicación/ })).toBeFocused();
+  await expect(page.getByRole('dialog').getByRole('link', { name: /Explorar sitio/ })).toBeFocused();
   await expect(page).toHaveURL(/#proyectos$/);
   await page.keyboard.press('a');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Ver proyecto Albion Calculator' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Ver proyecto Gimae! — Idol Club' })).toBeFocused();
   await page.keyboard.press('a');
   await expect(page.locator('nav a[href="#proyectos"]')).toBeFocused();
   await page.keyboard.press('w');

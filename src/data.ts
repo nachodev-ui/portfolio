@@ -3,8 +3,8 @@ export const profile = {
   username: 'nachodev-ui',
   location: 'Santiago, Chile',
   github: 'https://github.com/nachodev-ui',
-  // Add your preferred public email to enable direct email contact.
-  email: '',
+  linkedin: 'https://cl.linkedin.com/in/ignacio-cisternas-orellana',
+  email: 'ig.cisternas.dev@gmail.com',
   intro: 'Transformo ideas en interfaces con personalidad y datos en decisiones. Desarrollo experiencias web, aplicaciones y las conexiones que las hacen funcionar.',
 };
 
@@ -32,8 +32,27 @@ export interface Project {
   repository: string;
   demo?: string;
   demoLabel?: string;
+  status?: string;
 }
 export const projects: Project[] = [
+  {
+    id: 'gimae', number: '04', category: 'Frontend', name: 'Gimae! — Idol Club',
+    status: 'Desarrollo avanzado',
+    subtitle: 'Una identidad creativa. Una plataforma completa.',
+    description: 'Plataforma para un grupo idol chileno: tienda de merch, eventos, blog y experiencias interactivas, con un Backstage para gestionar contenido y pedidos.',
+    challenge: 'Llevar una identidad visual japonesa a una experiencia web propia y conectar el catálogo, las variantes, el inventario y la operación del grupo sin perder claridad.',
+    solution: 'Un frontend adaptable en HTML, CSS y JavaScript, conectado a Supabase para contenido, autenticación, almacenamiento y funciones de servidor. Un panel Backstage reúne las tareas del equipo.',
+    features: [
+      'Catálogo, galerías, carrito y disponibilidad por variante.',
+      'Gestión de contenido, inventario y pedidos desde Backstage.',
+      'Generador de chekis con edición y descarga en el navegador.',
+      'Gacha de photocards y avatar animado con diálogos.',
+      'Integraciones PayPal Sandbox y Webpay de prueba; pagos Live aún pendientes.',
+    ],
+    stack: ['JavaScript', 'HTML & CSS', 'Supabase', 'PostgreSQL', 'Edge Functions'],
+    repository: 'https://github.com/nachodev-ui/gimae-web',
+    demo: 'https://nachodev-ui.github.io/gimae-web/', demoLabel: 'Explorar sitio',
+  },
   {
     id: 'calculator', number: '01', category: 'Frontend', name: 'Albion Calculator',
     subtitle: 'Menos suposiciones. Mejores decisiones.',
